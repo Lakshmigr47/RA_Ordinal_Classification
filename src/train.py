@@ -1,32 +1,52 @@
-import os
 import torch
 import torch.nn as nn
-import torch.optim as optim
 from torch.utils.data import DataLoader
+import torchvision.transforms as transforms
+import os
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 from dataset import RAOrdinalDataset
-from model import EfficientNetOrdinal
+from model import EfficientNetOrdinal, coral_loss
 
-# ======================
-# CONFIG
-# ======================
+# ------------------------------
+# Training Configuration
+# ------------------------------
 DATA_DIR = "data/RA"
-MODEL_SAVE_PATH = "saved_models/efficientnet_ordinal.pth"
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+NUM_CLASSES = 5
 BATCH_SIZE = 16
-LEARNING_RATE = 1e-4
-EPOCHS = 25   # You can reduce to 12–15 if overfitting continues
-PATIENCE = 5  # Early stopping patience
+EPOCHS = 10
+LR = 1e-4
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+MODEL_SAVE_PATH = "saved_models/efficientnet_ordinal.pth"
 
 
-# ======================
-# LOADERS
-# ======================
-def get_loaders():
-    train_set = RAOrdinalDataset(os.path.join(DATA_DIR, "train"))
-    val_set = RAOrdinalDataset(os.path.join(DATA_DIR, "val"))
+# ------------------------------
+# Data Transforms
+# ------------------------------
+train_transform = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.RandomHorizontalFlip(),
+    transforms.RandomRotation(10),
+    transforms.ToTensor(),
+    transforms.Normalize([0.485, 0.456, 0.406], 
+                         [0.229, 0.224, 0.225])
+])
+
+val_transform = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+    transforms.Normalize([0.485, 0.456, 0.406], 
+                         [0.229, 0.224, 0.225])
+])
+
+
+# ------------------------------
+# Load Datasets
+# ------------------------------
+def load_data():
+    train_set = RAOrdinalDataset(os.path.join(DATA_DIR, "train"), transform=train_transform)
+    val_set = RAOrdinalDataset(os.path.join(DATA_DIR, "val"), transform=val_transform)
 
     train_loader = DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True)
     val_loader = DataLoader(val_set, batch_size=BATCH_SIZE, shuffle=False)
@@ -34,71 +54,70 @@ def get_loaders():
     return train_loader, val_loader
 
 
-# ======================
-# TRAINING
-# ======================
+# ------------------------------
+# Training Loop
+# ------------------------------
 def train_model():
+    train_loader, val_loader = load_data()
 
-    train_loader, val_loader = get_loaders()
+    model = EfficientNetOrdinal(num_classes=NUM_CLASSES).to(DEVICE)
+    optimizer = torch.optim.Adam(model.parameters(), lr=LR)
 
-    model = EfficientNetOrdinal(num_classes=4).to(DEVICE)
-    criterion = nn.BCEWithLogitsLoss()
-    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
-
-    best_val_loss = float("inf")
-    patience_counter = 0
-
-    print(f"Training on device: {DEVICE}")
+    train_losses = []
+    val_losses = []
 
     for epoch in range(EPOCHS):
         model.train()
-        train_losses = []
+        running_loss = 0
 
-        # -------- TRAIN LOOP --------
-        for images, labels in tqdm(train_loader, desc=f"Epoch {epoch+1}/{EPOCHS}"):
+        print(f"\nEpoch {epoch+1}/{EPOCHS}")
+
+        for images, labels in tqdm(train_loader):
             images, labels = images.to(DEVICE), labels.to(DEVICE)
 
             optimizer.zero_grad()
             outputs = model(images)
-            loss = criterion(outputs, labels)
+
+            loss = coral_loss(outputs, labels, NUM_CLASSES)
             loss.backward()
             optimizer.step()
 
-            train_losses.append(loss.item())
+            running_loss += loss.item()
 
-        train_loss = sum(train_losses) / len(train_losses)
+        avg_train_loss = running_loss / len(train_loader)
+        train_losses.append(avg_train_loss)
 
-        # -------- VALIDATION LOOP --------
+        # ------------------------------
+        # Validation
+        # ------------------------------
         model.eval()
-        val_losses = []
+        running_val_loss = 0
+
         with torch.no_grad():
             for images, labels in val_loader:
                 images, labels = images.to(DEVICE), labels.to(DEVICE)
                 outputs = model(images)
-                loss = criterion(outputs, labels)
-                val_losses.append(loss.item())
+                loss = coral_loss(outputs, labels, NUM_CLASSES)
+                running_val_loss += loss.item()
 
-        val_loss = sum(val_losses) / len(val_losses)
+        avg_val_loss = running_val_loss / len(val_loader)
+        val_losses.append(avg_val_loss)
 
-        print(f"Epoch {epoch+1}/{EPOCHS} | Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}")
+        print(f"Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f}")
 
-        # -------- CHECKPOINT: SAVE BEST MODEL --------
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
-            patience_counter = 0
-            torch.save(model.state_dict(), MODEL_SAVE_PATH)
-            print(f"🔥 Saved BEST model (val_loss={val_loss:.4f})")
+        # Save best model
+        torch.save(model.state_dict(), MODEL_SAVE_PATH)
 
-        else:
-            patience_counter += 1
-            print(f"No improvement. Patience: {patience_counter}/{PATIENCE}")
+    # Save training curves
+    plt.figure()
+    plt.plot(train_losses, label="Train Loss")
+    plt.plot(val_losses, label="Val Loss")
+    plt.legend()
+    plt.xlabel("Epochs")
+    plt.ylabel("Loss")
+    plt.savefig("results/training_curves.png")
 
-            # -------- EARLY STOPPING --------
-            if patience_counter >= PATIENCE:
-                print("⛔ Early stopping triggered.")
-                break
-
-    print("Training complete.")
+    print(f"\nTraining complete. Model saved to {MODEL_SAVE_PATH}")
 
 
 if __name__ == "__main__":
