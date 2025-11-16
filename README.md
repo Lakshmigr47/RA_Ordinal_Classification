@@ -129,9 +129,3 @@ Each folder must contain subfolders `0/ 1/ 2/ 3/ 4/` with images.
 - Compare CORAL vs Softmax classification  
 - Build a Streamlit web UI  
 - Add uncertainty calibration  
-
----
-
-## **License**
-MIT License (optional — add if required)
-
