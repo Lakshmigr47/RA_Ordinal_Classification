@@ -92,7 +92,7 @@ def evaluate_model():
     plt.title("Confusion Matrix")
     plt.xlabel("Predicted")
     plt.ylabel("True")
-    plt.savefig("../results/confusion_matrix.png")
+    plt.savefig("results/confusion_matrix.png")
     print("\nConfusion matrix saved to results/confusion_matrix.png")
 
     # ------------------------------
@@ -102,7 +102,7 @@ def evaluate_model():
         "true_label": all_labels,
         "predicted_label": all_preds
     })
-    df.to_csv("../results/predictions.csv", index=False)
+    df.to_csv("results/predictions.csv", index=False)
     print("Predictions saved to results/predictions.csv")
 
 
