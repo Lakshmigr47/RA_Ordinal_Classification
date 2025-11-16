@@ -1,6 +1,12 @@
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
+
 import torch
 import torch.nn as nn
 from torchvision.models import efficientnet_b0, EfficientNet_B0_Weights
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
+
 
 # ------------------------------
 # Ordinal Regression (CORAL)
