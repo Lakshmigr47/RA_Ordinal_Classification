@@ -6,3 +6,4 @@ matplotlib
 scikit-learn
 coral-pytorch
 opencv-python
+seaborn
