@@ -15,7 +15,7 @@ from model import EfficientNetOrdinal, coral_loss
 DATA_DIR = "data/RA"
 NUM_CLASSES = 5
 BATCH_SIZE = 16
-EPOCHS = 10
+EPOCHS = 25
 LR = 1e-4
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 MODEL_SAVE_PATH = "saved_models/efficientnet_ordinal.pth"
