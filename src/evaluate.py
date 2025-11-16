@@ -16,11 +16,11 @@ from model import EfficientNetOrdinal, coral_predict
 # ------------------------------
 # Config
 # ------------------------------
-DATA_DIR = "../data/RA"
+DATA_DIR = "data/RA"
 NUM_CLASSES = 5
 BATCH_SIZE = 16
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-MODEL_PATH = "../saved_models/efficientnet_ordinal.pth"
+MODEL_PATH = "saved_models/efficientnet_ordinal.pth"
 
 # ------------------------------
 # Test transforms
