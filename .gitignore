@@ -10,8 +10,5 @@ __pycache__/
 .DS_Store
 
 # Ignore log or temp files
-*.pt
-*.pth
-*.h5
 *.ckpt
 *.log
